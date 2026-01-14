@@ -6,6 +6,7 @@
 
 # define CHOICE_BUFFER_SIZE 10
 # define CLIENT_SUCCESS 0
+# define BASEURL "http://localhost:8000/"
 
 // Define a memory structure to be used with receiving callbacks data
 typedef struct memory {
@@ -35,9 +36,9 @@ size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
 }
 
 // HTTP Stuffs
-int http_get(char* url){
+CURLcode http_get(char* url){
     CURL *curl;
-    CURLcode result;
+    CURLcode result = CURLE_OK;
     ReceivedMemory_t chunk;
 
     chunk.resp_buffer = malloc(1); // can be grown as needed
@@ -69,12 +70,20 @@ int http_get(char* url){
     // no need cleanup curl as should be done inside the guard branch
     free(chunk.resp_buffer);
 
-    return (int)result;
+    return result;
 }
 
 
 // process handling based on menu selections
 int do_list() {
+    CURLcode ret;
+    char url[256];
+    const char* path = "list";
+    snprintf(url, sizeof(url), "%s%s", BASEURL, path);
+    ret = http_get(url);
+    if (ret != CURLE_OK) {
+        printf("GET failed: %s", curl_easy_strerror(ret));
+    }
     return CLIENT_SUCCESS;
 }
 
