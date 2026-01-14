@@ -2,12 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <curl/curl.h>
-// #include <cjson/cJSON.h>
+#include <cjson/cJSON.h>
 
 # define CHOICE_BUFFER_SIZE 10
 # define URL_MAX_BUFFER_SIZE 2049
 # define CLIENT_SUCCESS 0
 # define CLIENT_FAILED_DUE_TO_HTTP_OR_CURL 1
+# define CLIENT_FAILED_PARSE_JSON 2
 # define BASEURL "http://localhost:8000/"
 
 // Define a memory structure to be used with receiving callbacks data
@@ -45,26 +46,33 @@ int http_get(char* url, ReceivedMemory_t *received_chunk){
 
     // Init the curl session for this request
     curl = curl_easy_init();
-    if (curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, url);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, received_chunk);
-
-        // perform request
-        result = curl_easy_perform(curl);
-
-        // error checking
-        if (result != CURLE_OK) {
-            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(result));
-            curl_easy_cleanup(curl);
-            return 1;
-        }
-
-        if (http_status_code != 200) return 1;
-        // Cleanup
-        curl_easy_cleanup(curl);
+    if (!curl) {
+        fprintf(stderr, "curl_easy_init() failed!");
+        return 1;
     }
 
+    // Setup the session
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, received_chunk);
+
+    // perform request
+    result = curl_easy_perform(curl);
+    if (result != CURLE_OK) {
+        fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(result));
+        curl_easy_cleanup(curl);
+        return 1;
+    }
+
+    // Check status code
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_status_code);
+    if (http_status_code != 200) {
+        fprintf(stderr, "HTTP Status Code indicated non-success: %ld\n", http_status_code);
+        curl_easy_cleanup(curl);
+        return 1;
+    }
+    // Cleanup
+    curl_easy_cleanup(curl);
     return 0;
 }
 
@@ -78,7 +86,7 @@ int do_list() {
     chunk.resp_buffer = malloc(1); // can be grown as needed
     chunk.size = 0;
     // TODO: How do we handle path?
-    const char* path = "abc";
+    const char* path = "list";
     snprintf(url, sizeof(url), "%s%s", BASEURL, path);
 
     ret = http_get(url, &chunk);
@@ -89,7 +97,41 @@ int do_list() {
     }
 
     // Attempt to parse
-    printf("Response from server: %s", chunk.resp_buffer);
+    //printf("Response from server: %s", chunk.resp_buffer);
+
+    cJSON *root = cJSON_Parse(chunk.resp_buffer);
+    if (root == NULL) {
+        printf("Error parsing JSON\n");
+        free(chunk.resp_buffer); // IMPORTANT BEFORE ANY RETURN
+        return CLIENT_FAILED_PARSE_JSON;
+    }
+
+    cJSON *items = cJSON_GetObjectItem(root, "items");
+    if (cJSON_IsArray(items)) {
+        int item_count = cJSON_GetArraySize(items);
+        printf("Found %d items:\n", item_count);
+
+        for (int idx = 0; idx < item_count; idx++) {
+            cJSON *item = cJSON_GetArrayItem(items, idx);
+            
+            // Get fields from each item
+            cJSON *name = cJSON_GetObjectItem(item, "name");
+            cJSON *type = cJSON_GetObjectItem(item, "type");
+            cJSON *size = cJSON_GetObjectItem(item, "size");
+            
+            printf("  [%d] %s (%s)", idx, 
+                   name->valuestring, 
+                   type->valuestring);
+            
+            // Size might be null for directories
+            if (cJSON_IsNumber(size)) {
+                printf(" - %d bytes", size->valueint);
+            }
+            printf("\n");
+        }
+    }
+
+    cJSON_Delete(root);
     // Remember to release malloc
     free(chunk.resp_buffer);
     return CLIENT_SUCCESS;
