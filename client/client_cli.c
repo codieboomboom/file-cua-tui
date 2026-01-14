@@ -5,7 +5,9 @@
 // #include <cjson/cJSON.h>
 
 # define CHOICE_BUFFER_SIZE 10
+# define URL_MAX_BUFFER_SIZE 2049
 # define CLIENT_SUCCESS 0
+# define CLIENT_FAILED_DUE_TO_HTTP_OR_CURL 1
 # define BASEURL "http://localhost:8000/"
 
 // Define a memory structure to be used with receiving callbacks data
@@ -36,20 +38,17 @@ size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
 }
 
 // HTTP Stuffs
-CURLcode http_get(char* url){
+int http_get(char* url, ReceivedMemory_t *received_chunk){
     CURL *curl;
     CURLcode result = CURLE_OK;
-    ReceivedMemory_t chunk;
-
-    chunk.resp_buffer = malloc(1); // can be grown as needed
-    chunk.size = 0;
+    long http_status_code;
 
     // Init the curl session for this request
     curl = curl_easy_init();
     if (curl) {
         curl_easy_setopt(curl, CURLOPT_URL, url);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &chunk);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, received_chunk);
 
         // perform request
         result = curl_easy_perform(curl);
@@ -57,33 +56,42 @@ CURLcode http_get(char* url){
         // error checking
         if (result != CURLE_OK) {
             fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(result));
-        } else {
-            // success
-            printf("Response:\n%s\n", chunk.resp_buffer);
+            curl_easy_cleanup(curl);
+            return 1;
         }
 
+        if (http_status_code != 200) return 1;
         // Cleanup
         curl_easy_cleanup(curl);
     }
 
-    // Free up the malloc before return
-    // no need cleanup curl as should be done inside the guard branch
-    free(chunk.resp_buffer);
-
-    return result;
+    return 0;
 }
 
 
 // process handling based on menu selections
 int do_list() {
     CURLcode ret;
-    char url[256];
-    const char* path = "list";
+    ReceivedMemory_t chunk;
+    char url[URL_MAX_BUFFER_SIZE];
+
+    chunk.resp_buffer = malloc(1); // can be grown as needed
+    chunk.size = 0;
+    // TODO: How do we handle path?
+    const char* path = "abc";
     snprintf(url, sizeof(url), "%s%s", BASEURL, path);
-    ret = http_get(url);
-    if (ret != CURLE_OK) {
-        printf("GET failed: %s", curl_easy_strerror(ret));
+
+    ret = http_get(url, &chunk);
+    if (ret != 0) {
+        printf("GET failed\n");
+        free(chunk.resp_buffer); // IMPORTANT BEFORE ANY RETURN
+        return CLIENT_FAILED_DUE_TO_HTTP_OR_CURL;
     }
+
+    // Attempt to parse
+    printf("Response from server: %s", chunk.resp_buffer);
+    // Remember to release malloc
+    free(chunk.resp_buffer);
     return CLIENT_SUCCESS;
 }
 
