@@ -138,10 +138,56 @@ int do_list() {
 }
 
 int do_read() {
+    CURLcode ret;
+    ReceivedMemory_t chunk;
+    char url[URL_MAX_BUFFER_SIZE];
+
+    chunk.resp_buffer = malloc(1);
+    chunk.size = 0;
+
+    // TODO: How do we handle path?
+    const char* filename = "README.md";
+    const char* path = "read";
+    snprintf(url, sizeof(url), "%s%s?path=%s", BASEURL, path, filename);
+
+    ret = http_get(url, &chunk);
+    if (ret != 0) {
+        printf("GET failed\n");
+        free(chunk.resp_buffer);
+        return CLIENT_FAILED_DUE_TO_HTTP_OR_CURL;
+    }
+
+    printf("Response from server: %s", chunk.resp_buffer);
+
+    free(chunk.resp_buffer);
+
     return CLIENT_SUCCESS;
 }
 
 int do_info() {
+    CURLcode ret;
+    ReceivedMemory_t chunk;
+    char url[URL_MAX_BUFFER_SIZE];
+
+    chunk.resp_buffer = malloc(1);
+    chunk.size = 0;
+
+    // TODO: How do we handle path?
+    const char* filename = "README.md";
+    const char* path = "info";
+    snprintf(url, sizeof(url), "%s%s?path=%s", BASEURL, path, filename);
+
+    ret = http_get(url, &chunk);
+    if (ret != 0) {
+        printf("GET failed\n");
+        free(chunk.resp_buffer);
+        return CLIENT_FAILED_DUE_TO_HTTP_OR_CURL;
+    }
+
+    printf("Response from server: %s", chunk.resp_buffer);
+
+    free(chunk.resp_buffer);
+
     return CLIENT_SUCCESS;
 }
 
