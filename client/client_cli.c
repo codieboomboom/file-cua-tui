@@ -173,7 +173,7 @@ int do_info() {
     chunk.size = 0;
 
     // TODO: How do we handle path?
-    const char* filename = "README.md";
+    const char* filename = ".";
     const char* path = "info";
     snprintf(url, sizeof(url), "%s%s?path=%s", BASEURL, path, filename);
 
@@ -184,7 +184,25 @@ int do_info() {
         return CLIENT_FAILED_DUE_TO_HTTP_OR_CURL;
     }
 
-    printf("Response from server: %s", chunk.resp_buffer);
+    //printf("Response from server: %s", chunk.resp_buffer);
+    cJSON *root = cJSON_Parse(chunk.resp_buffer);
+    if (root == NULL) {
+        printf("Error parsing JSON\n");
+        free(chunk.resp_buffer); // IMPORTANT BEFORE ANY RETURN
+        return CLIENT_FAILED_PARSE_JSON;
+    }
+
+    cJSON *name = cJSON_GetObjectItem(root, "name");
+    cJSON *type = cJSON_GetObjectItem(root, "type");
+    cJSON *size = cJSON_GetObjectItem(root, "size");
+    cJSON *last_modified = cJSON_GetObjectItem(root, "modified");
+    cJSON *created = cJSON_GetObjectItem(root, "created");
+
+    printf("Metadata for %s:\n", name->valuestring);
+    printf("    [type] %s\n", type->valuestring);
+    printf("    [size] %d\n", size->valueint);
+    printf("    [last modified] %s\n", last_modified->valuestring);
+    printf("    [created] %s\n",created->valuestring);
 
     free(chunk.resp_buffer);
 
