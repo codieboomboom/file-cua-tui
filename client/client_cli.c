@@ -157,8 +157,24 @@ int do_read() {
         return CLIENT_FAILED_DUE_TO_HTTP_OR_CURL;
     }
 
-    printf("Response from server: %s", chunk.resp_buffer);
+    // printf("Response from server: %s", chunk.resp_buffer);
 
+    cJSON *root = cJSON_Parse(chunk.resp_buffer);
+    if (root == NULL) {
+        printf("Error parsing JSON\n");
+        free(chunk.resp_buffer); // IMPORTANT BEFORE ANY RETURN
+        return CLIENT_FAILED_PARSE_JSON;
+    }
+
+    cJSON *filepath = cJSON_GetObjectItem(root, "path");
+    cJSON *content = cJSON_GetObjectItem(root, "content");
+
+    printf("Content of %s:\n", filepath->valuestring);
+    printf("===========================\n");
+    printf("%s\n", content->valuestring);
+    printf("===========================\n");
+    
+    cJSON_Delete(root);
     free(chunk.resp_buffer);
 
     return CLIENT_SUCCESS;
@@ -204,6 +220,7 @@ int do_info() {
     printf("    [last modified] %s\n", last_modified->valuestring);
     printf("    [created] %s\n",created->valuestring);
 
+    cJSON_Delete(root); // what if i don't delete? try with valgrind
     free(chunk.resp_buffer);
 
     return CLIENT_SUCCESS;
