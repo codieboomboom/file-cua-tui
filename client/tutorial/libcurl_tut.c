@@ -34,7 +34,7 @@ int main() {
     if(curl) {
         // Note: curl_easy_setopt sticks until you change options or until you resetjj
         // Set the URL
-        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8000/list?path=.");
+        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8000/list"); // Damn this is painful to have to recompile again everytime...
         
         // Set callback function to receive data
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
