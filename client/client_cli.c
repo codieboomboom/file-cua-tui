@@ -80,7 +80,7 @@ int http_get(char* url, ReceivedMemory_t *received_chunk){
 // process handling based on menu selections
 int do_list() {
     CURLcode ret;
-    ReceivedMemory_t chunk;
+    ReceivedMemory_t chunk = {0};
     char url[URL_MAX_BUFFER_SIZE];
 
     chunk.resp_buffer = malloc(1); // can be grown as needed
@@ -93,6 +93,7 @@ int do_list() {
     if (ret != 0) {
         printf("GET failed\n");
         free(chunk.resp_buffer); // IMPORTANT BEFORE ANY RETURN
+        chunk.resp_buffer = NULL;
         return CLIENT_FAILED_DUE_TO_HTTP_OR_CURL;
     }
 
@@ -103,6 +104,7 @@ int do_list() {
     if (root == NULL) {
         printf("Error parsing JSON\n");
         free(chunk.resp_buffer); // IMPORTANT BEFORE ANY RETURN
+        chunk.resp_buffer = NULL;
         return CLIENT_FAILED_PARSE_JSON;
     }
 
@@ -134,12 +136,13 @@ int do_list() {
     cJSON_Delete(root);
     // Remember to release malloc
     free(chunk.resp_buffer);
+    chunk.resp_buffer = NULL;
     return CLIENT_SUCCESS;
 }
 
 int do_read() {
     CURLcode ret;
-    ReceivedMemory_t chunk;
+    ReceivedMemory_t chunk = {0};
     char url[URL_MAX_BUFFER_SIZE];
 
     chunk.resp_buffer = malloc(1);
@@ -154,6 +157,7 @@ int do_read() {
     if (ret != 0) {
         printf("GET failed\n");
         free(chunk.resp_buffer);
+        chunk.resp_buffer = NULL;
         return CLIENT_FAILED_DUE_TO_HTTP_OR_CURL;
     }
 
@@ -163,6 +167,7 @@ int do_read() {
     if (root == NULL) {
         printf("Error parsing JSON\n");
         free(chunk.resp_buffer); // IMPORTANT BEFORE ANY RETURN
+        chunk.resp_buffer = NULL;
         return CLIENT_FAILED_PARSE_JSON;
     }
 
@@ -176,13 +181,14 @@ int do_read() {
     
     cJSON_Delete(root);
     free(chunk.resp_buffer);
+    chunk.resp_buffer = NULL;
 
     return CLIENT_SUCCESS;
 }
 
 int do_info() {
     CURLcode ret;
-    ReceivedMemory_t chunk;
+    ReceivedMemory_t chunk = {0};
     char url[URL_MAX_BUFFER_SIZE];
 
     chunk.resp_buffer = malloc(1);
@@ -197,6 +203,7 @@ int do_info() {
     if (ret != 0) {
         printf("GET failed\n");
         free(chunk.resp_buffer);
+        chunk.resp_buffer = NULL;
         return CLIENT_FAILED_DUE_TO_HTTP_OR_CURL;
     }
 
@@ -205,6 +212,7 @@ int do_info() {
     if (root == NULL) {
         printf("Error parsing JSON\n");
         free(chunk.resp_buffer); // IMPORTANT BEFORE ANY RETURN
+        chunk.resp_buffer = NULL;
         return CLIENT_FAILED_PARSE_JSON;
     }
 
@@ -222,6 +230,7 @@ int do_info() {
 
     cJSON_Delete(root); // what if i don't delete? try with valgrind
     free(chunk.resp_buffer);
+    chunk.resp_buffer = NULL;
 
     return CLIENT_SUCCESS;
 }
